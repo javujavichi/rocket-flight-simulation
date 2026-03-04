@@ -414,9 +414,9 @@ rocket-flight-digital-twin/
 │   └── pom.xml
 ├── docs/                           # Documentation
 │   ├── kafka-high-level.md         # Kafka architecture concepts
-│   ├── OrlandoDevOps.md            # Failure scenarios & operational testing
-│   ├── QUICK_START.md              # Condensed quick start
-│   └── OBSERVABILITY_TESTING.md    # Observability guide
+│   ├── observability-testing.md    # Observability testing guide
+│   ├── orlando-devops.md           # Failure scenarios & operational testing
+│   └── quick-start.md              # Condensed quick start
 ├── docker-compose.yml              # Infrastructure (Kafka, PostgreSQL, services)
 ├── package.json                    # Monorepo orchestration scripts
 ├── start-dev.sh                    # Startup script with colored output
@@ -672,9 +672,10 @@ For production deployment, consider:
 
 ## Additional Documentation
 
-- [docs/OrlandoDevOps.md](docs/OrlandoDevOps.md) - Failure scenarios and operational testing
-- [docs/QUICK_START.md](docs/QUICK_START.md) - Condensed quick start guide
+- [docs/orlando-devops.md](docs/orlando-devops.md) - Failure scenarios and operational testing
+- [docs/quick-start.md](docs/quick-start.md) - Condensed quick start guide
 - [docs/kafka-high-level.md](docs/kafka-high-level.md) - Kafka architecture concepts
+- [docs/observability-testing.md](docs/observability-testing.md) - Observability testing guide
 - [rocket-simulator-ui/README.md](rocket-simulator-ui/README.md) - Mission Control UI details
 - [rocket-sim/README.md](rocket-sim/README.md) - Simulator service details
 - [realtime-gateway/README.md](realtime-gateway/README.md) - Gateway service details
