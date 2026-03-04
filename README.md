@@ -685,3 +685,7 @@ For production deployment, consider:
 ## License
 
 MIT
+
+---
+
+Made with ❤️ by Javiera Laso
