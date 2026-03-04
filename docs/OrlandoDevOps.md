@@ -498,3 +498,7 @@ docker compose down
 # Stop and remove volumes (resets Postgres data):
 docker compose down -v
 ```
+
+---
+
+Made with ❤️ by Javiera Laso
