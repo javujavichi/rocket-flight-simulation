@@ -54,11 +54,13 @@ echo "${GREEN}✅ Simulator started (PID: $SIM_PID)${NC}"
 cd ..
 echo ""
 
-# Step 4: Start Next.js UI
+# Step 4: Start Mission Control UI
 echo "${CYAN}[4/4] Starting Mission Control UI...${NC}"
-pnpm dev > logs/ui.log 2>&1 &
+cd rocket-simulator-ui
+pnpm dev > ../logs/ui.log 2>&1 &
 UI_PID=$!
 echo "${GREEN}✅ UI started (PID: $UI_PID)${NC}"
+cd ..
 echo ""
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

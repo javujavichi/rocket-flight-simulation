@@ -2,6 +2,334 @@
 
 A real-time digital twin system for simulating and monitoring rocket launches. Features a distributed microservices architecture with event streaming, telemetry validation, data persistence, and live visualization.
 
+## Table of Contents
+
+- [Quick Start (One Command)](#quick-start-one-command)
+- [Prerequisites](#prerequisites)
+- [Running Services Individually](#running-services-individually)
+- [Stopping Services](#stopping-services)
+- [Available URLs](#available-urls)
+- [Available Commands Reference](#available-commands-reference)
+- [Troubleshooting](#troubleshooting)
+- [System Architecture](#system-architecture)
+- [Project Structure](#project-structure)
+- [How It Works](#how-it-works)
+- [Configuration](#configuration)
+- [Development](#development)
+- [Observability & Monitoring](#observability--monitoring)
+- [Production Deployment](#production-deployment)
+
+---
+
+## Quick Start (One Command)
+
+### First-Time Setup
+
+```bash
+# 1. Install dependencies
+pnpm install
+
+# 2. Build the telemetry service (only needed once)
+cd telemetry-service && mvn clean package && cd ..
+```
+
+### Start Everything
+
+```bash
+pnpm dev:all
+```
+
+This single command:
+- Starts Kafka, PostgreSQL, and Kafka UI (Docker containers)
+- Starts the Telemetry Service (validates and persists data)
+- Starts the Rocket Simulator (generates telemetry)
+- Starts the Realtime Gateway (WebSocket server)
+- Starts the Mission Control UI (Next.js dashboard)
+
+Wait 10-15 seconds for all services to initialize, then open http://localhost:3000
+
+### Alternative: Using Shell Script
+
+For detailed startup logs with colored output:
+
+```bash
+./start-dev.sh
+```
+
+---
+
+## Prerequisites
+
+| Requirement | Version | Purpose |
+|-------------|---------|---------|
+| Node.js | 18+ | UI, Gateway, Simulator |
+| pnpm | Latest | Package manager |
+| Java | 21+ | Telemetry Service |
+| Maven | 3.9+ | Building Java services |
+| Docker & Docker Compose | Latest | Infrastructure (Kafka, PostgreSQL) |
+
+Verify your setup:
+
+```bash
+node --version    # Should be 18+
+pnpm --version    # Any recent version
+java --version    # Should be 21+
+mvn --version     # Should be 3.9+
+docker --version  # Any recent version
+```
+
+---
+
+## Running Services Individually
+
+When you need to run specific services for development or debugging:
+
+### Infrastructure Only (Kafka, PostgreSQL, Telemetry Service)
+
+```bash
+docker compose up -d
+```
+
+Check infrastructure health:
+
+```bash
+docker compose ps
+```
+
+### Individual Node.js Services
+
+| Service | Command | Port |
+|---------|---------|------|
+| Mission Control UI | `pnpm dev:ui` | 3000 |
+| Realtime Gateway | `pnpm dev:gateway` | 4001 |
+| Rocket Simulator | `pnpm dev:sim` | - |
+
+Example workflow for debugging the gateway:
+
+```bash
+# Start infrastructure
+docker compose up -d
+
+# Run gateway in its own terminal (for log visibility)
+pnpm dev:gateway
+
+# Run simulator in another terminal
+pnpm dev:sim
+
+# Run UI in another terminal
+pnpm dev:ui
+```
+
+### Rebuild and Restart Telemetry Service
+
+```bash
+cd telemetry-service && mvn clean package && cd ..
+docker compose up -d --build telemetry-service
+```
+
+---
+
+## Stopping Services
+
+### Stop Everything
+
+```bash
+./stop-dev.sh
+```
+
+Or manually:
+
+```bash
+# Press Ctrl+C in the terminal running pnpm dev:all
+
+# Stop Docker containers
+docker compose down
+```
+
+### Stop Only Infrastructure (Keep Node.js Services)
+
+```bash
+docker compose down
+```
+
+### Stop Only Node.js Services (Keep Infrastructure)
+
+```bash
+# Press Ctrl+C in the terminal running pnpm dev:all
+# Or kill by port:
+lsof -ti:3000,4001 | xargs kill -9
+```
+
+---
+
+## Available URLs
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| Mission Control Dashboard | http://localhost:3000 | Main web interface |
+| About Page | http://localhost:3000/about | System information |
+| Realtime Gateway Health | http://localhost:4001/health | Gateway status & metrics |
+| Telemetry Service Health | http://localhost:8081/actuator/health | Java service health |
+| Kafka UI | http://localhost:8080 | Browse Kafka topics & messages |
+| PostgreSQL | `localhost:5432` | Database (user: postgres, pass: postgres) |
+
+---
+
+## Available Commands Reference
+
+### Main Commands
+
+| Command | Description |
+|---------|-------------|
+| `pnpm dev:all` | Start everything (infrastructure + all services) |
+| `./start-dev.sh` | Start with detailed colored output |
+| `./stop-dev.sh` | Stop all services |
+
+### Individual Services
+
+| Command | Description |
+|---------|-------------|
+| `pnpm dev:ui` | Start Mission Control UI (rocket-simulator-ui) |
+| `pnpm dev:gateway` | Start Realtime Gateway only |
+| `pnpm dev:sim` | Start Rocket Simulator only |
+
+### Infrastructure
+
+| Command | Description |
+|---------|-------------|
+| `docker compose up -d` | Start Kafka, PostgreSQL, Telemetry Service |
+| `docker compose down` | Stop all Docker containers |
+| `docker compose ps` | Check container health status |
+| `docker compose logs -f <service>` | Stream logs for a service |
+
+### Utilities
+
+| Command | Description |
+|---------|-------------|
+| `pnpm kafka:health` | Check gateway health via curl |
+| `pnpm kafka:logs` | Stream Kafka container logs |
+
+---
+
+## Troubleshooting
+
+### Docker Issues
+
+**"Docker is not running"**
+
+```bash
+# Start Docker Desktop, then retry
+docker info  # Should not error
+```
+
+**Containers not healthy**
+
+```bash
+# Check container status
+docker compose ps
+
+# View specific container logs
+docker compose logs kafka
+docker compose logs postgres
+docker compose logs telemetry-service
+
+# Restart everything
+docker compose down && docker compose up -d
+```
+
+### Port Conflicts
+
+**"Port already in use"**
+
+```bash
+# Find what's using the port
+lsof -i :3000
+lsof -i :4001
+lsof -i :8080
+
+# Kill processes on common ports
+lsof -ti:3000,4001 | xargs kill -9
+
+# Or use stop script
+./stop-dev.sh
+```
+
+### No Telemetry Data in UI
+
+1. **Verify infrastructure is running:**
+   ```bash
+   docker compose ps
+   # All containers should show "healthy"
+   ```
+
+2. **Check Kafka topics exist:**
+   ```bash
+   docker exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+   # Should show: rocket.telemetry.raw, rocket.telemetry.v1
+   ```
+
+3. **Verify gateway is connected:**
+   ```bash
+   curl http://localhost:4001/health | jq
+   # kafka.connected should be true
+   ```
+
+4. **Check telemetry service logs:**
+   ```bash
+   docker compose logs -f telemetry-service
+   # Should see "Consumed raw telemetry" messages
+   ```
+
+5. **Verify data is being persisted:**
+   ```bash
+   docker exec postgres psql -U postgres -d telemetry -c "SELECT COUNT(*) FROM telemetry;"
+   ```
+
+### WebSocket Connection Issues
+
+**Check gateway health:**
+
+```bash
+curl http://localhost:4001/health
+```
+
+**Browser console shows WebSocket errors:**
+- Open DevTools (F12) → Console
+- The UI auto-reconnects with backoff (1s, 2s, 4s, 8s, max 10s)
+- Status bar shows connection state
+
+### Kafka Issues
+
+**Check consumer group lag:**
+
+```bash
+docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
+  --bootstrap-server localhost:9092 \
+  --describe --group telemetry-service
+```
+
+**Reset consumer offsets (if stuck):**
+
+```bash
+docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
+  --bootstrap-server localhost:9092 \
+  --group telemetry-service \
+  --reset-offsets --to-latest --topic rocket.telemetry.raw --execute
+```
+
+### View Logs
+
+```bash
+# Docker container logs
+docker compose logs -f kafka
+docker compose logs -f telemetry-service
+
+# Application logs (when using start-dev.sh)
+tail -f logs/*.log
+```
+
+---
+
 ## System Architecture
 
 ```
@@ -27,152 +355,73 @@ A real-time digital twin system for simulating and monitoring rocket launches. F
                                                                                                   └──────────────────┘
 ```
 
-## Core Components
+### Core Components
 
-1. **Rocket Simulator** - Physics-based simulation engine producing raw telemetry
-2. **Telemetry Service** - Spring Boot microservice for validation, normalization, and persistence
-3. **PostgreSQL** - Time-series telemetry storage with indexed queries
-4. **Realtime Gateway** - WebSocket server streaming validated telemetry to clients
-5. **Mission Control Dashboard** - Next.js web application with real-time visualization
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Rocket Simulator | Node.js/TypeScript | Physics-based simulation producing raw telemetry |
+| Telemetry Service | Spring Boot (Java 21) | Validation, normalization, persistence |
+| PostgreSQL | PostgreSQL 16 | Time-series telemetry storage |
+| Realtime Gateway | Node.js/TypeScript | WebSocket server streaming to clients |
+| Mission Control | Next.js/React | Real-time dashboard visualization |
 
-## Features
+### Features Overview
 
-### Simulation & Physics
-- **Two-stage rocket simulation** with configurable parameters (mass, thrust, burn duration)
-- **Realistic physics** including gravity, thrust, drag, and stage separation
-- **Live or simulation modes** - run physics simulation or connect to real telemetry sources
+**Simulation & Physics**
+- Two-stage rocket simulation with configurable parameters
+- Realistic physics (gravity, thrust, drag, stage separation)
+- Live or simulation modes
 
-### Data Pipeline
-- **Event streaming** via Apache Kafka with partitioned topics
-- **Telemetry validation** with configurable thresholds (altitude, velocity, thrust, propellant)
-- **Data normalization** to TelemetryV1 contract with enriched fields
-- **Flight phase detection** (LIFTOFF, ASCENT, MAX_Q, STAGE_SEPARATION, ORBIT_INSERTION, ORBIT)
-- **PostgreSQL persistence** with indexed time-series storage for historical queries
+**Data Pipeline**
+- Event streaming via Apache Kafka with partitioned topics
+- Telemetry validation with configurable thresholds
+- Flight phase detection (LIFTOFF, ASCENT, MAX_Q, STAGE_SEPARATION, ORBIT)
+- PostgreSQL persistence with indexed queries
 
-### Real-time Visualization
-- **Interactive dashboard** with live charts for altitude, velocity, acceleration, thrust, fuel
-- **Animated trajectory view** showing rocket position from Earth to orbit
-- **Event log** displaying mission milestones (ignition, MECO, stage sep, apogee)
-- **Connection monitoring** with auto-reconnect and health indicators
-- **Message rate tracking** and telemetry freshness warnings
-
-### Observability
-- **Health endpoints** exposing Kafka, database, and WebSocket metrics
-- **Structured JSON logging** with correlation IDs and partition/offset tracking
-- **Configurable parameters** via UI controls in simulation mode
-- **Status bar** with real-time connection health and telemetry stats
-
-## Prerequisites
-
-- **Node.js 18+** - For UI, gateway, and simulator services
-- **Java 21+** - For Spring Boot telemetry service
-- **Maven 3.9+** - For building Java services
-- **Docker & Docker Compose** - For infrastructure (Kafka, PostgreSQL)
-- **pnpm** - Package manager for Node.js services
-
-## Quick Start
-
-### 🚀 Complete System Startup
-
-1. **Build the telemetry service:**
-```bash
-cd telemetry-service
-mvn clean package
-cd ..
-```
-
-2. **Start infrastructure (Kafka, PostgreSQL, Telemetry Service):**
-```bash
-docker compose up -d
-```
-
-3. **Wait for services to be healthy:**
-```bash
-docker compose ps
-# All services should show "healthy" status
-```
-
-4. **Start application services:**
-```bash
-pnpm install
-pnpm dev:all
-```
-
-This starts the simulator, gateway, and UI concurrently.
-
-**Services will be available at:**
-- 🎯 **Mission Control Dashboard**: http://localhost:3000
-- 🔌 **Realtime Gateway Health**: http://localhost:4001/health
-- 🩺 **Telemetry Service Health**: http://localhost:8081/actuator/health
-- 📊 **Kafka UI**: http://localhost:8080
-- 🗄️ **PostgreSQL**: localhost:5432 (postgres/postgres)
-
-### 🛑 Stopping Services
-
-```bash
-# Stop application services (Ctrl+C in terminal running pnpm dev:all)
-
-# Stop infrastructure
-docker compose down
-```
+**Real-time Visualization**
+- Live charts (altitude, velocity, acceleration, thrust, fuel)
+- Animated trajectory view (Earth to orbit)
+- Event log with mission milestones
+- Connection monitoring with auto-reconnect
 
 ## Project Structure
 
 ```
-.
-├── app/                            # Next.js app directory
-│   ├── page.tsx                    # Main dashboard page
-│   ├── layout.tsx                  # Root layout with theme provider
-│   └── globals.css                 # Mission control theme
-├── components/                     # React components
-│   ├── mission-dashboard.tsx       # Main orchestration component
-│   ├── mission-header.tsx          # Mode switcher and controls
-│   ├── simulation-config.tsx       # Parameter configuration panel
-│   ├── telemetry-chart.tsx         # Real-time chart component
-│   ├── event-log.tsx               # Mission events display
-│   └── ui/                         # shadcn/ui components
-├── hooks/
-│   └── use-telemetry-stream.ts     # WebSocket hook with auto-reconnect
-├── lib/
-│   ├── telemetry-types.ts          # Shared TypeScript types
-│   ├── simulation-engine.ts        # Physics simulation logic
-│   └── utils.ts                    # Utility functions
+rocket-flight-digital-twin/
+├── rocket-simulator-ui/            # Mission Control dashboard (Next.js)
+│   ├── app/                        # Next.js App Router pages
+│   ├── components/                 # React components & shadcn/ui
+│   ├── hooks/                      # WebSocket and utility hooks
+│   ├── lib/                        # Types, simulation engine, utils
+│   ├── next.config.mjs
+│   ├── tailwind.config.ts
+│   ├── tsconfig.json
+│   ├── Dockerfile
+│   └── package.json
 ├── rocket-sim/                     # Rocket simulator service (Node.js)
 │   ├── src/
-│   │   ├── index.ts                # Main entry point
+│   │   ├── index.ts                # Kafka producer entry point
 │   │   └── simulation.ts           # Physics engine
-│   ├── package.json
-│   └── tsconfig.json
+│   └── package.json
 ├── realtime-gateway/               # WebSocket gateway (Node.js)
 │   ├── src/
-│   │   └── index.ts                # WebSocket + Kafka consumer
-│   ├── package.json
-│   └── tsconfig.json
-├── telemetry-service/              # Validation service (Spring Boot)
-│   ├── src/main/java/com/rocketdemo/telemetry/
-│   │   ├── TelemetryServiceApplication.java
-│   │   ├── dto/                    # Data transfer objects
-│   │   │   ├── TelemetryRaw.java   # Raw input contract
-│   │   │   └── TelemetryV1.java    # Validated output contract
-│   │   ├── service/                # Business logic
-│   │   │   ├── TelemetryValidationService.java
-│   │   │   └── TelemetryPersistenceService.java
-│   │   ├── kafka/                  # Kafka integration
-│   │   │   ├── TelemetryConsumer.java
-│   │   │   └── TelemetryProducer.java
-│   │   ├── entity/                 # JPA entities
-│   │   │   └── TelemetryEntity.java
-│   │   ├── repository/             # Data access
-│   │   │   └── TelemetryRepository.java
-│   │   └── config/                 # Spring configuration
-│   │       ├── KafkaConfig.java
-│   │       └── JacksonConfig.java
+│   │   └── index.ts                # Kafka consumer + WebSocket server
+│   └── package.json
+├── telemetry-service/              # Telemetry validation service (Spring Boot)
+│   ├── src/main/java/              # Java source
 │   ├── src/main/resources/
-│   │   └── application.yml         # Service configuration
-│   ├── pom.xml                     # Maven dependencies
-│   ├── Dockerfile                  # Multi-stage build
-│   └── README.md                   # Service documentation
-└── docker-compose.yml              # Infrastructure orchestration
+│   │   └── application.yml
+│   └── pom.xml
+├── docs/                           # Documentation
+│   ├── kafka-high-level.md         # Kafka architecture concepts
+│   ├── OrlandoDevOps.md            # Failure scenarios & operational testing
+│   ├── QUICK_START.md              # Condensed quick start
+│   └── OBSERVABILITY_TESTING.md    # Observability guide
+├── docker-compose.yml              # Infrastructure (Kafka, PostgreSQL, services)
+├── package.json                    # Monorepo orchestration scripts
+├── start-dev.sh                    # Startup script with colored output
+├── stop-dev.sh                     # Shutdown script
+└── README.md
 ```
 
 ## How It Works
@@ -249,29 +498,9 @@ Interactive web interface with:
 - **Status monitoring**: Connection health, message rate, telemetry freshness warnings
 - **Auto-reconnect**: Exponential backoff WebSocket reconnection (1s, 2s, 4s, 8s, max 10s)
 
+---
+
 ## Configuration
-
-### Available Scripts
-
-**Full Stack:**
-- `pnpm dev:all` - Start all Node.js services (Gateway + Simulator + UI)
-- Individual services must be started separately (see Quick Start)
-
-**Development:**
-- `pnpm dev` - Start Next.js UI only
-- `pnpm dev:gateway` - Start Realtime Gateway only
-- `pnpm dev:sim` - Start Rocket Simulator only
-
-**Infrastructure:**
-- `docker compose up -d` - Start infrastructure (Kafka, PostgreSQL, Telemetry Service)
-- `docker compose down` - Stop all infrastructure services
-- `docker compose ps` - Check service health status
-- `docker compose logs -f <service>` - View logs for specific service
-
-**Production:**
-- `pnpm build` - Build Next.js for production
-- `pnpm start` - Start production Next.js server
-- `cd telemetry-service && mvn clean package` - Build telemetry service JAR
 
 ### Environment Variables
 
@@ -310,11 +539,13 @@ spring:
 NEXT_PUBLIC_WS_URL=ws://localhost:4001/ws
 ```
 
+---
+
 ## Development
 
 ### Customizing Simulation Parameters
 
-Parameters can be adjusted in the UI (simulation mode) or by editing `lib/simulation-engine.ts`:
+Parameters can be adjusted in the UI (simulation mode) or by editing [lib/simulation-engine.ts](lib/simulation-engine.ts):
 
 **Stage 1:**
 - `s1MaxThrustN`: Maximum thrust (Newtons)
@@ -332,34 +563,13 @@ Parameters can be adjusted in the UI (simulation mode) or by editing `lib/simula
 
 ### Adding New Telemetry Fields
 
-1. **Update raw contract** in `rocket-sim/src/simulation.ts`:
-```typescript
-interface TelemetryRaw {
-  // existing fields...
-  newField: number;
-}
-```
-
-2. **Add to validation service** `telemetry-service/src/main/java/.../dto/TelemetryRaw.java`:
-```java
-@NotNull
-private Double newField;
-```
-
-3. **Add to normalized contract** `TelemetryV1.java`:
-```java
-@Min(0)
-@Max(1000)
-private Double newField;
-```
-
-4. **Update validation logic** in `TelemetryValidationService.java`
-
-5. **Update entity** in `TelemetryEntity.java` for persistence
-
-6. **Update UI types** in `lib/telemetry-types.ts`
-
-7. **Add to charts** in `components/telemetry-chart.tsx`
+1. Update raw contract in `rocket-sim/src/simulation.ts`
+2. Add to validation service `telemetry-service/.../dto/TelemetryRaw.java`
+3. Add to normalized contract `TelemetryV1.java`
+4. Update validation logic in `TelemetryValidationService.java`
+5. Update entity in `TelemetryEntity.java` for persistence
+6. Update UI types in `lib/telemetry-types.ts`
+7. Add to charts in `components/telemetry-chart.tsx`
 
 ### Modifying Validation Rules
 
@@ -374,8 +584,9 @@ validation:
     velocity:
       min: 0
       max: 10000
-    # Add custom thresholds...
 ```
+
+---
 
 ## Observability & Monitoring
 
@@ -385,69 +596,27 @@ validation:
 ```bash
 curl http://localhost:4001/health
 ```
-Returns:
-```json
-{
-  "status": "ok",
-  "kafka": {
-    "connected": true,
-    "topic": "rocket.telemetry.v1",
-    "groupId": "realtime-gateway",
-    "lastMessageTs": "2026-02-15T22:10:05.123Z",
-    "messagesPerSecond": 10.2
-  },
-  "ws": {
-    "clients": 2
-  },
-  "uptimeSeconds": 120
-}
-```
 
 **Telemetry Service:**
 ```bash
 curl http://localhost:8081/actuator/health
 ```
-Returns:
-```json
-{
-  "status": "UP",
-  "components": {
-    "db": {"status": "UP"},
-    "kafka": {"status": "UP"},
-    "diskSpace": {"status": "UP"}
-  }
-}
-```
 
 ### Database Queries
 
-**View recent telemetry:**
 ```bash
+# View recent telemetry
 docker exec postgres psql -U postgres -d telemetry -c \
   "SELECT flight_id, t_plus_ms, altitude_m, velocity_ms, phase FROM telemetry ORDER BY timestamp DESC LIMIT 10;"
-```
 
-**Count records by flight:**
-```bash
+# Count records by flight
 docker exec postgres psql -U postgres -d telemetry -c \
   "SELECT flight_id, COUNT(*) FROM telemetry GROUP BY flight_id;"
-```
 
-**Check invalid records:**
-```bash
+# Check invalid records
 docker exec postgres psql -U postgres -d telemetry -c \
   "SELECT COUNT(*) FROM telemetry WHERE is_valid = false;"
 ```
-
-### Status Bar (UI)
-
-The dashboard includes real-time monitoring:
-- **Connection Status**: Connected (green) / Reconnecting (yellow) / Disconnected (red)
-- **Last Message Time**: Timestamp of most recent telemetry
-- **Mission Time**: Current T+ time display
-- **Flight ID**: Current mission identifier
-- **Message Rate**: Messages/second (5s rolling average)
-- **Telemetry Warning**: Alert if >3s without data
 
 ### Structured Logs
 
@@ -463,189 +632,55 @@ All services output structured JSON:
 {"level":"info","msg":"producing","flightId":"FLT-12345","tPlusMs":15000,"altitude":45230,"velocity":1523}
 ```
 
-**Telemetry Service:**
-```
-INFO [telemetry-service] Processed telemetry: flightId=FLT-12345, phase=ASCENT_STAGE1, valid=true
-```
-
-## Troubleshooting
-
-### Services Not Starting
-
-**Check Docker infrastructure:**
-```bash
-docker compose ps
-# All services should show "healthy"
-```
-
-**View service logs:**
-```bash
-docker compose logs kafka
-docker compose logs postgres
-docker compose logs telemetry-service
-```
-
-**Rebuild telemetry service:**
-```bash
-cd telemetry-service
-mvn clean package
-cd ..
-docker compose up -d --build telemetry-service
-```
-
-### No Telemetry Data in UI
-
-**1. Verify simulator is running:**
-```bash
-# Should see simulator in process list
-pnpm dev:all
-# Or check if running separately
-ps aux | grep "rocket-sim"
-```
-
-**2. Check Kafka topics exist:**
-```bash
-docker exec kafka kafka-topics.sh --bootstrap-server localhost:9092 --list
-# Should show: rocket.telemetry.raw and rocket.telemetry.v1
-```
-
-**3. Verify telemetry service is consuming:**
-```bash
-docker compose logs -f telemetry-service
-# Should see: "Consumed raw telemetry" messages
-```
-
-**4. Check database persistence:**
-```bash
-docker exec postgres psql -U postgres -d telemetry -c "SELECT COUNT(*) FROM telemetry;"
-# Should return count > 0
-```
-
-**5. Verify gateway is consuming v1 topic:**
-```bash
-curl http://localhost:4001/health | jq '.kafka'
-# kafka.connected should be true, messagesPerSecond > 0
-```
-
-### WebSocket Connection Issues
-
-**Check gateway health:**
-```bash
-curl http://localhost:4001/health
-```
-
-**Verify environment variable:**
-```bash
-echo $NEXT_PUBLIC_WS_URL
-# Should be: ws://localhost:4001/ws
-```
-
-**Check browser console:**
-- Open DevTools → Console
-- Look for WebSocket errors
-- Status bar shows connection state
-
-**Auto-reconnect behavior:**
-- Exponential backoff: 1s, 2s, 4s, 8s, max 10s
-- Check console for reconnection attempts
-- Verify only one WebSocket connection exists
-
-### Validation Issues
-
-**Check validation errors in database:**
-```bash
-docker exec postgres psql -U postgres -d telemetry -c \
-  "SELECT event_id, validation_errors FROM telemetry WHERE is_valid = false LIMIT 10;"
-```
-
-**Adjust validation thresholds:**
-Edit `telemetry-service/src/main/resources/application.yml` and restart service.
-
-### Consumer Lag
-
-**Check Kafka consumer groups:**
-```bash
-docker exec kafka kafka-consumer-groups.sh \
-  --bootstrap-server localhost:9092 \
-  --describe --group telemetry-service
-  
-docker exec kafka kafka-consumer-groups.sh \
-  --bootstrap-server localhost:9092 \
-  --describe --group realtime-gateway
-```
-
-**Reset offsets (if needed):**
-```bash
-docker exec kafka kafka-consumer-groups.sh \
-  --bootstrap-server localhost:9092 \
-  --group telemetry-service \
-  --reset-offsets --to-latest --topic rocket.telemetry.raw --execute
-```
+---
 
 ## Performance
 
-- **Telemetry Rate**: 10 events/second (100ms intervals)
-- **End-to-End Latency**: ~100-200ms (simulator → validation → UI)
-- **WebSocket Latency**: <50ms typical
-- **Database Write Throughput**: ~10 inserts/second with batch optimization
-- **Kafka Throughput**: 3 partitions per topic for parallelism
-- **UI Render Rate**: 60fps chart updates
+| Metric | Value |
+|--------|-------|
+| Telemetry Rate | 10 events/second (100ms intervals) |
+| End-to-End Latency | ~100-200ms |
+| WebSocket Latency | <50ms typical |
+| Database Throughput | ~10 inserts/second |
+| Kafka Partitions | 3 per topic |
+| UI Render Rate | 60fps |
+
+---
 
 ## Technology Stack
 
-**Frontend:**
-- Next.js 15 (React 19, App Router)
-- TypeScript
-- Recharts for real-time visualization
-- shadcn/ui component library
-- Tailwind CSS
+| Layer | Technologies |
+|-------|--------------|
+| Frontend | Next.js 15, React 19, TypeScript, Recharts, shadcn/ui, Tailwind CSS |
+| Backend | Node.js 18+ (Simulator, Gateway), Spring Boot 3.2.3, Java 21 |
+| Infrastructure | Apache Kafka 3.7.0 (KRaft), PostgreSQL 16, Docker Compose |
+| Communication | WebSocket, Kafka pub/sub |
 
-**Backend Services:**
-- Node.js 18+ (Simulator, Gateway)
-- Spring Boot 3.2.3 (Telemetry Service)
-- Java 21
-
-**Infrastructure:**
-- Apache Kafka 3.7.0 (KRaft mode)
-- PostgreSQL 16
-- Docker & Docker Compose
-
-**Communication:**
-- WebSocket (gateway ↔ UI)
-- Kafka pub/sub (service ↔ service)
+---
 
 ## Production Deployment
 
 For production deployment, consider:
 
-1. **Infrastructure:**
-   - Use managed Kafka (Confluent Cloud, MSK, etc.)
-   - Use managed PostgreSQL (RDS, Cloud SQL, etc.)
-   - Deploy services to Kubernetes or cloud container services
+1. **Infrastructure**: Managed Kafka (Confluent, MSK), managed PostgreSQL (RDS, Cloud SQL), Kubernetes
+2. **Security**: OAuth2/JWT auth, TLS for Kafka, WSS for WebSocket, API gateway with rate limiting
+3. **Scaling**: Horizontal gateway scaling, increase Kafka partitions, connection pooling
+4. **Monitoring**: Prometheus/Grafana, distributed tracing (Jaeger, Zipkin), consumer lag alerts
+5. **Data Management**: Retention policies, database backups, Kafka log retention, cold storage archival
 
-2. **Security:**
-   - Add authentication/authorization (OAuth2, JWT)
-   - Enable TLS for Kafka connections
-   - Use WSS (WebSocket Secure) instead of WS
-   - Implement API gateway with rate limiting
+---
 
-3. **Scaling:**
-   - Scale gateway horizontally (multiple instances behind load balancer)
-   - Increase Kafka partitions for higher throughput
-   - Use connection pooling for database
-   - Configure consumer concurrency based on partitions
+## Additional Documentation
 
-4. **Monitoring:**
-   - Set up metrics collection (Prometheus, Grafana)
-   - Configure alerting for service health
-   - Enable distributed tracing (Jaeger, Zipkin)
-   - Monitor Kafka consumer lag
+- [docs/OrlandoDevOps.md](docs/OrlandoDevOps.md) - Failure scenarios and operational testing
+- [docs/QUICK_START.md](docs/QUICK_START.md) - Condensed quick start guide
+- [docs/kafka-high-level.md](docs/kafka-high-level.md) - Kafka architecture concepts
+- [rocket-simulator-ui/README.md](rocket-simulator-ui/README.md) - Mission Control UI details
+- [rocket-sim/README.md](rocket-sim/README.md) - Simulator service details
+- [realtime-gateway/README.md](realtime-gateway/README.md) - Gateway service details
+- [telemetry-service/README.md](telemetry-service/README.md) - Telemetry service details
 
-5. **Data Management:**
-   - Implement data retention policies
-   - Set up database backups
-   - Configure Kafka log retention
-   - Add data archival to cold storage
+---
 
 ## License
 
