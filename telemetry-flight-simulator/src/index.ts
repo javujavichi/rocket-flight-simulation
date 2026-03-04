@@ -29,7 +29,7 @@ async function main(): Promise<void> {
   });
 
   const kafka = new Kafka({
-    clientId: "rocket-sim",
+    clientId: "telemetry-flight-simulator",
     brokers: KAFKA_BROKERS,
     retry: { retries: 10, initialRetryTime: 1000 },
   });

@@ -108,7 +108,7 @@ All status bar indicators are correct, charts are updating, and the health endpo
 ```bash
 # If running via pnpm dev:all, stop only the simulator:
 kill $(lsof -ti:9092 -sTCP:ESTABLISHED) 2>/dev/null
-# Or press Ctrl+C in the rocket-sim terminal if running separately
+# Or press Ctrl+C in the telemetry-flight-simulator terminal if running separately
 ```
 
 2. Observe the Status Bar within 3 seconds:
@@ -271,7 +271,7 @@ Look for these structured entries in the gateway terminal output:
 
 ### Simulator Logs
 
-Look for these structured entries in the rocket-sim terminal output:
+Look for these structured entries in the telemetry-flight-simulator terminal output:
 
 ```json
 {"level":"info","msg":"rocket_sim_starting","ts":"...","kafkaBootstrap":"localhost:9092","kafkaTopic":"rocket.telemetry.raw","tickMs":50,"durationMs":280000,"delayBetweenFlights":10000}

@@ -1,4 +1,4 @@
-# Rocket Simulator UI
+# Mission Control UI
 
 A real-time Mission Control dashboard built with Next.js and React, displaying live telemetry from a rocket flight simulation.
 
@@ -7,7 +7,7 @@ A real-time Mission Control dashboard built with Next.js and React, displaying l
 This service is the **user-facing layer** of the telemetry pipeline. It connects to the Realtime Gateway via WebSocket and renders all incoming telemetry data as live charts, trajectory animations, and a mission event log.
 
 ```
-realtime-gateway → WebSocket → rocket-simulator-ui → Browser
+realtime-gateway → WebSocket → mission-control-ui → Browser
 ```
 
 ## What It Does
@@ -53,7 +53,7 @@ pnpm dev:all
 ### Standalone
 
 ```bash
-cd rocket-simulator-ui
+cd mission-control-ui
 
 # Install dependencies (first time only)
 pnpm install

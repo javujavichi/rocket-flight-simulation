@@ -5,9 +5,9 @@
   "scripts": {
     "dev:all": "pnpm kafka:start && pnpm services:start",
     "services:start": "concurrently -n \"UI,Gateway,Sim\" -c \"cyan,green,yellow\" --kill-others-on-fail --restart-tries 3 \"pnpm dev:ui\" \"pnpm dev:gateway\" \"pnpm dev:sim\"",
-    "dev:ui": "cd rocket-simulator-ui && pnpm dev",
+    "dev:ui": "cd mission-control-ui && pnpm dev",
     "dev:gateway": "cd realtime-gateway && pnpm dev",
-    "dev:sim": "cd rocket-sim && pnpm dev",
+    "dev:sim": "cd telemetry-flight-simulator && pnpm dev",
     "kafka:start": "docker compose up -d && echo '⏳ Waiting for Kafka to be ready...' && sleep 5 && echo '✅ Kafka is ready!'",
     "kafka:stop": "docker compose down",
     "kafka:logs": "docker compose logs -f kafka",

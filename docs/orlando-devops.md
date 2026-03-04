@@ -22,7 +22,7 @@ Distributed systems are designed with the assumption that **components will fail
 ## System Architecture
 
 ```
-rocket-sim (Node.js)
+telemetry-flight-simulator (Node.js)
     │  produces every 50 ms
     ▼
 rocket.telemetry.raw (Kafka topic · 3 partitions)
@@ -109,7 +109,7 @@ docker compose stop telemetry-service
 
 ### What Happens
 
-1. rocket-sim continues producing telemetry every 50 ms into `rocket.telemetry.raw`
+1. telemetry-flight-simulator continues producing telemetry every 50 ms into `rocket.telemetry.raw`
 2. Kafka durably stores these events — nothing is lost
 3. telemetry-service is the only service that reads from `rocket.telemetry.raw` and writes to `rocket.telemetry.v1`, so the normalized topic stops receiving new events
 4. realtime-gateway has nothing new to consume — the UI freezes on the last received telemetry point
@@ -117,7 +117,7 @@ docker compose stop telemetry-service
 ### Verification
 
 ```bash
-# Raw topic offsets keep increasing (rocket-sim is still producing)
+# Raw topic offsets keep increasing (telemetry-flight-simulator is still producing)
 docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
   --bootstrap-server localhost:9092 --describe --group telemetry-service
 # Look at LAG column — it grows while the service is down
@@ -153,7 +153,7 @@ docker compose restart kafka
 
 ### What Happens
 
-1. **rocket-sim:** KafkaJS producer fails to publish — retries automatically (configured with 10 retries, 1 s initial backoff)
+1. **telemetry-flight-simulator:** KafkaJS producer fails to publish — retries automatically (configured with 10 retries, 1 s initial backoff)
 2. **telemetry-service:** Spring Kafka consumer loses connection — reconnects automatically when Kafka comes back
 3. **realtime-gateway:** KafkaJS consumer disconnects — reconnects automatically (10 retries)
 4. **Kafka UI:** Temporarily unavailable (it connects to the same broker)
@@ -161,7 +161,7 @@ docker compose restart kafka
 ### Verification
 
 ```bash
-# Watch rocket-sim terminal for temporary errors, then successful reconnect
+# Watch telemetry-flight-simulator terminal for temporary errors, then successful reconnect
 # Watch telemetry-service logs for kafka reconnection
 docker compose logs -f telemetry-service | grep -i "connect\|error\|rebalance"
 
@@ -242,13 +242,13 @@ The presentation layer (gateway + UI) is fully decoupled from the data processin
 
 ## Scenario 4 — Simulation Service Stops
 
-**Goal:** See what happens when the data source (rocket-sim) stops producing events.
+**Goal:** See what happens when the data source (telemetry-flight-simulator) stops producing events.
 
 ### Trigger
 
 ```bash
 # If running separately:
-# Press Ctrl+C in the rocket-sim terminal
+# Press Ctrl+C in the telemetry-flight-simulator terminal
 # Or kill it:
 kill $(lsof -ti:9092 -sTCP:ESTABLISHED) 2>/dev/null  # less reliable
 # Simpler: just Ctrl+C in the concurrently terminal
@@ -297,7 +297,7 @@ Producers are independent. Stopping the data source does not cascade failures to
 docker compose stop telemetry-service
 ```
 
-Wait **30–60 seconds** while rocket-sim continues producing at ~20 events/second. This accumulates ~600–1200 raw events in Kafka.
+Wait **30–60 seconds** while telemetry-flight-simulator continues producing at ~20 events/second. This accumulates ~600–1200 raw events in Kafka.
 
 ### Step 2 — Verify the Backlog
 
@@ -347,7 +347,7 @@ docker compose stop postgres
 
 ### What Happens
 
-1. rocket-sim continues producing to `rocket.telemetry.raw` — unaffected
+1. telemetry-flight-simulator continues producing to `rocket.telemetry.raw` — unaffected
 2. telemetry-service reads a raw event, validates it, and attempts to persist to Postgres
 3. **The `save()` call throws a database connection exception**
 4. Because the service uses **manual Kafka acknowledgment**, the message is **not acknowledged** — it stays in the topic
@@ -446,9 +446,9 @@ Understanding these details helps explain the behavior observed in each scenario
 | telemetry-service consumer group | `telemetry-service` | Tracks offsets independently from gateway |
 | realtime-gateway consumer group | `realtime-gateway` | Tracks offsets independently from telemetry-service |
 | auto-offset-reset | `earliest` (telemetry-service) | On first start, reads from beginning of topic |
-| KafkaJS retry config | 10 retries, 1 s initial backoff | rocket-sim and gateway reconnect automatically |
+| KafkaJS retry config | 10 retries, 1 s initial backoff | telemetry-flight-simulator and gateway reconnect automatically |
 | HikariCP pool size | max 10, min idle 5 | Connection pool to Postgres |
-| rocket-sim tick rate | 50 ms (~20 events/sec) | Rate of telemetry production |
+| Telemetry tick rate | 50 ms (~20 events/sec) | Rate of telemetry production |
 | Flight duration | 280 seconds | Each flight runs for ~4.5 minutes, then a new flight starts after 10 s |
 
 ---

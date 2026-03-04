@@ -1,4 +1,4 @@
-# Rocket Simulator
+# Telemetry Flight Simulator
 
 A physics-based rocket flight simulator that generates realistic telemetry events and publishes them to Kafka.
 
@@ -7,7 +7,7 @@ A physics-based rocket flight simulator that generates realistic telemetry event
 This service acts as the **data source** for the entire telemetry pipeline. It simulates a two-stage rocket launch from liftoff to orbit, producing raw sensor data at 20Hz. It is the starting point of the event stream.
 
 ```
-rocket-sim → [rocket.telemetry.raw] → telemetry-service → ...
+telemetry-flight-simulator → [rocket.telemetry.raw] → telemetry-service → ...
 ```
 
 ## What It Does
@@ -149,7 +149,7 @@ docker exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:90
 
 ```bash
 # Check simulator logs
-docker compose logs -f rocket-sim
+docker compose logs -f telemetry-flight-simulator
 # Or if running locally:
 pnpm dev
 ```

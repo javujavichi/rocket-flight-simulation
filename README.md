@@ -189,9 +189,9 @@ lsof -ti:3000,4001 | xargs kill -9
 
 | Command | Description |
 |---------|-------------|
-| `pnpm dev:ui` | Start Mission Control UI (rocket-simulator-ui) |
+| `pnpm dev:ui` | Start Mission Control UI (mission-control-ui) |
 | `pnpm dev:gateway` | Start Realtime Gateway only |
-| `pnpm dev:sim` | Start Rocket Simulator only |
+| `pnpm dev:sim` | Start Telemetry Flight Simulator only |
 
 ### Infrastructure
 
@@ -388,7 +388,7 @@ tail -f logs/*.log
 
 ```
 rocket-flight-digital-twin/
-├── rocket-simulator-ui/            # Mission Control dashboard (Next.js)
+├── mission-control-ui/              # Mission Control dashboard (Next.js)
 │   ├── app/                        # Next.js App Router pages
 │   ├── components/                 # React components & shadcn/ui
 │   ├── hooks/                      # WebSocket and utility hooks
@@ -398,7 +398,7 @@ rocket-flight-digital-twin/
 │   ├── tsconfig.json
 │   ├── Dockerfile
 │   └── package.json
-├── rocket-sim/                     # Rocket simulator service (Node.js)
+├── telemetry-flight-simulator/     # Telemetry flight simulator (Node.js)
 │   ├── src/
 │   │   ├── index.ts                # Kafka producer entry point
 │   │   └── simulation.ts           # Physics engine
@@ -504,7 +504,7 @@ Interactive web interface with:
 
 ### Environment Variables
 
-**Rocket Simulator** (`rocket-sim/.env`):
+**Telemetry Flight Simulator** (`telemetry-flight-simulator/.env`):
 ```env
 KAFKA_BOOTSTRAP_SERVERS=localhost:9092
 KAFKA_TOPIC=rocket.telemetry.raw
@@ -563,7 +563,7 @@ Parameters can be adjusted in the UI (simulation mode) or by editing [lib/simula
 
 ### Adding New Telemetry Fields
 
-1. Update raw contract in `rocket-sim/src/simulation.ts`
+1. Update raw contract in `telemetry-flight-simulator/src/simulation.ts`
 2. Add to validation service `telemetry-service/.../dto/TelemetryRaw.java`
 3. Add to normalized contract `TelemetryV1.java`
 4. Update validation logic in `TelemetryValidationService.java`
@@ -676,8 +676,8 @@ For production deployment, consider:
 - [docs/quick-start.md](docs/quick-start.md) - Condensed quick start guide
 - [docs/kafka-high-level.md](docs/kafka-high-level.md) - Kafka architecture concepts
 - [docs/observability-testing.md](docs/observability-testing.md) - Observability testing guide
-- [rocket-simulator-ui/README.md](rocket-simulator-ui/README.md) - Mission Control UI details
-- [rocket-sim/README.md](rocket-sim/README.md) - Simulator service details
+- [mission-control-ui/README.md](mission-control-ui/README.md) - Mission Control UI details
+- [telemetry-flight-simulator/README.md](telemetry-flight-simulator/README.md) - Telemetry Flight Simulator details
 - [realtime-gateway/README.md](realtime-gateway/README.md) - Gateway service details
 - [telemetry-service/README.md](telemetry-service/README.md) - Telemetry service details
 

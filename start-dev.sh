@@ -47,7 +47,7 @@ echo ""
 
 # Step 3: Start Rocket Simulator
 echo "${CYAN}[3/4] Starting Rocket Simulator...${NC}"
-cd rocket-sim
+cd telemetry-flight-simulator
 pnpm dev > ../logs/simulator.log 2>&1 &
 SIM_PID=$!
 echo "${GREEN}✅ Simulator started (PID: $SIM_PID)${NC}"
@@ -56,7 +56,7 @@ echo ""
 
 # Step 4: Start Mission Control UI
 echo "${CYAN}[4/4] Starting Mission Control UI...${NC}"
-cd rocket-simulator-ui
+cd mission-control-ui
 pnpm dev > ../logs/ui.log 2>&1 &
 UI_PID=$!
 echo "${GREEN}✅ UI started (PID: $UI_PID)${NC}"

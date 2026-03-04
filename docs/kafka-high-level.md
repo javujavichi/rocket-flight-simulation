@@ -5,12 +5,12 @@
 ## Part 1 — The System in Kafka Terms
 
 ```
-rocket-sim              → Producer
-rocket.telemetry.raw    → Topic
-telemetry-service       → Consumer + Producer
-rocket.telemetry.v1     → Topic
-realtime-gateway        → Consumer
-Mission Control UI      → Final consumer (via WebSocket)
+telemetry-flight-simulator  → Producer
+rocket.telemetry.raw        → Topic
+telemetry-service           → Consumer + Producer
+rocket.telemetry.v1         → Topic
+realtime-gateway            → Consumer
+Mission Control UI          → Final consumer (via WebSocket)
 ```
 
 Kafka sits in the middle as the **source of truth**.
@@ -69,7 +69,7 @@ Open Kafka UI at http://localhost:8080, navigate to `rocket.telemetry.raw`, and 
 
 ### Concept 2: Producer = Writes Events
 
-In this project: `rocket-sim = producer`
+In this project: `telemetry-flight-simulator = producer`
 
 ```javascript
 producer.send({
