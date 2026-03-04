@@ -13,10 +13,10 @@
     </parent>
 
     <groupId>com.rocketdigitaltwin</groupId>
-    <artifactId>telemetry-service</artifactId>
+    <artifactId>telemetry-processor</artifactId>
     <version>1.0.0</version>
-    <name>Telemetry Service</name>
-    <description>Rocket telemetry validation and normalization service</description>
+    <name>Telemetry Processor</name>
+    <description>Rocket telemetry validation, normalization, and processing service</description>
 
     <properties>
         <java.version>21</java.version>

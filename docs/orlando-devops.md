@@ -7,7 +7,7 @@ Distributed systems are designed with the assumption that **components will fail
 - [System Architecture](#system-architecture)
 - [Prerequisites](#prerequisites)
 - [Observability Tools](#observability-tools)
-- [Scenario 1 — Telemetry Service Failure](#scenario-1--telemetry-service-failure)
+- [Scenario 1 — Telemetry Processor Failure](#scenario-1--telemetry-processor-failure)
 - [Scenario 2 — Kafka Restart](#scenario-2--kafka-restart)
 - [Scenario 3 — Gateway Failure](#scenario-3--gateway-failure)
 - [Scenario 4 — Simulation Service Stops](#scenario-4--simulation-service-stops)
@@ -28,7 +28,7 @@ telemetry-flight-simulator (Node.js)
 rocket.telemetry.raw (Kafka topic · 3 partitions)
     │
     ▼
-telemetry-service (Spring Boot)
+telemetry-processor (Spring Boot)
     │  validates → persists to Postgres → publishes
     ▼
 rocket.telemetry.v1 (Kafka topic · 3 partitions)
@@ -52,7 +52,7 @@ Before running any failure scenario, make sure the full system is up and healthy
 pnpm dev:all
 ```
 
-This starts Docker infrastructure (Kafka, PostgreSQL, telemetry-service, Kafka UI) and the three local services (UI, Gateway, Simulator). Wait until all services show output in the terminal before proceeding.
+This starts Docker infrastructure (Kafka, PostgreSQL, telemetry-processor, Kafka UI) and the three local services (UI, Gateway, Simulator). Wait until all services show output in the terminal before proceeding.
 
 Verify infrastructure health:
 
@@ -72,7 +72,7 @@ Open all of these before testing so you can observe changes in real time:
 |------|-----|---------------|
 | Kafka UI | http://localhost:8080 | Topic offsets, consumer lag, partition distribution |
 | Gateway Health | http://localhost:4001/health | Kafka connection, message rate, WebSocket client count |
-| Telemetry Service Health | http://localhost:8081/actuator/health | Spring Boot health, DB connection, Kafka status |
+| Telemetry Processor Health | http://localhost:8081/actuator/health | Spring Boot health, DB connection, Kafka status |
 | Mission Control UI | http://localhost:3000 | Live telemetry charts, connection status |
 
 ### Useful Commands
@@ -81,7 +81,7 @@ Open all of these before testing so you can observe changes in real time:
 # Infrastructure status
 docker compose ps
 docker compose logs -f kafka
-docker compose logs -f telemetry-service
+docker compose logs -f telemetry-processor
 docker compose logs -f postgres
 
 # Gateway metrics (message rate, connected clients)
@@ -89,7 +89,7 @@ pnpm kafka:health
 
 # Kafka topic offsets (run inside the Kafka container)
 docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
-  --bootstrap-server localhost:9092 --describe --group telemetry-service
+  --bootstrap-server localhost:9092 --describe --group telemetry-processor
 
 docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
   --bootstrap-server localhost:9092 --describe --group realtime-gateway
@@ -97,21 +97,21 @@ docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
 
 ---
 
-## Scenario 1 — Telemetry Service Failure
+## Scenario 1 — Telemetry Processor Failure
 
 **Goal:** Show that upstream producers and Kafka are unaffected when a downstream consumer crashes.
 
 ### Trigger
 
 ```bash
-docker compose stop telemetry-service
+docker compose stop telemetry-processor
 ```
 
 ### What Happens
 
 1. telemetry-flight-simulator continues producing telemetry every 50 ms into `rocket.telemetry.raw`
 2. Kafka durably stores these events — nothing is lost
-3. telemetry-service is the only service that reads from `rocket.telemetry.raw` and writes to `rocket.telemetry.v1`, so the normalized topic stops receiving new events
+3. telemetry-processor is the only service that reads from `rocket.telemetry.raw` and writes to `rocket.telemetry.v1`, so the normalized topic stops receiving new events
 4. realtime-gateway has nothing new to consume — the UI freezes on the last received telemetry point
 
 ### Verification
@@ -119,7 +119,7 @@ docker compose stop telemetry-service
 ```bash
 # Raw topic offsets keep increasing (telemetry-flight-simulator is still producing)
 docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
-  --bootstrap-server localhost:9092 --describe --group telemetry-service
+  --bootstrap-server localhost:9092 --describe --group telemetry-processor
 # Look at LAG column — it grows while the service is down
 
 # Gateway reports zero message rate
@@ -130,7 +130,7 @@ pnpm kafka:health
 ### Recovery
 
 ```bash
-docker compose start telemetry-service
+docker compose start telemetry-processor
 ```
 
 The service resumes from the **last committed Kafka offset** (manual acknowledgment mode). It processes the accumulated backlog and catches up.
@@ -154,7 +154,7 @@ docker compose restart kafka
 ### What Happens
 
 1. **telemetry-flight-simulator:** KafkaJS producer fails to publish — retries automatically (configured with 10 retries, 1 s initial backoff)
-2. **telemetry-service:** Spring Kafka consumer loses connection — reconnects automatically when Kafka comes back
+2. **telemetry-processor:** Spring Kafka consumer loses connection — reconnects automatically when Kafka comes back
 3. **realtime-gateway:** KafkaJS consumer disconnects — reconnects automatically (10 retries)
 4. **Kafka UI:** Temporarily unavailable (it connects to the same broker)
 
@@ -162,13 +162,13 @@ docker compose restart kafka
 
 ```bash
 # Watch telemetry-flight-simulator terminal for temporary errors, then successful reconnect
-# Watch telemetry-service logs for kafka reconnection
-docker compose logs -f telemetry-service | grep -i "connect\|error\|rebalance"
+# Watch telemetry-processor logs for kafka reconnection
+docker compose logs -f telemetry-processor | grep -i "connect\|error\|rebalance"
 
 # After Kafka comes back, verify all consumers rejoin
 docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
   --bootstrap-server localhost:9092 --list
-# Should show: telemetry-service, realtime-gateway
+# Should show: telemetry-processor, realtime-gateway
 ```
 
 ### Recovery
@@ -178,7 +178,7 @@ Automatic — all services have built-in retry/reconnect logic.
 If a service fails to reconnect after ~30 seconds, restart it manually:
 
 ```bash
-docker compose restart telemetry-service
+docker compose restart telemetry-processor
 # or restart the local services:
 pnpm dev:gateway
 pnpm dev:sim
@@ -208,7 +208,7 @@ kill $(lsof -ti:4001)
 ### What Happens
 
 1. Kafka topics continue receiving events — the pipeline is unaffected
-2. telemetry-service continues normalizing and persisting as normal
+2. telemetry-processor continues normalizing and persisting as normal
 3. The UI loses its WebSocket connection to `ws://localhost:4001/ws`
 4. **No data is lost** — realtime-gateway uses a consumer group (`realtime-gateway`), and when it restarts, it resumes from the last committed offset
 
@@ -220,7 +220,7 @@ curl -s http://localhost:4001/health
 # Should fail: connection refused
 
 # Confirm the pipeline is still working
-docker compose logs --tail=5 telemetry-service
+docker compose logs --tail=5 telemetry-processor
 # Should still show "Published to rocket.telemetry.v1" messages
 
 # Check the UI — connection status indicator should show disconnected
@@ -294,7 +294,7 @@ Producers are independent. Stopping the data source does not cascade failures to
 ### Step 1 — Create a Backlog
 
 ```bash
-docker compose stop telemetry-service
+docker compose stop telemetry-processor
 ```
 
 Wait **30–60 seconds** while telemetry-flight-simulator continues producing at ~20 events/second. This accumulates ~600–1200 raw events in Kafka.
@@ -303,7 +303,7 @@ Wait **30–60 seconds** while telemetry-flight-simulator continues producing at
 
 ```bash
 docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
-  --bootstrap-server localhost:9092 --describe --group telemetry-service
+  --bootstrap-server localhost:9092 --describe --group telemetry-processor
 ```
 
 The **LAG** column shows how many unprocessed messages are waiting.
@@ -311,21 +311,21 @@ The **LAG** column shows how many unprocessed messages are waiting.
 ### Step 3 — Restart and Watch the Catch-Up
 
 ```bash
-docker compose start telemetry-service
+docker compose start telemetry-processor
 ```
 
 ### What to Observe
 
 ```bash
 # Watch the logs — notice the burst of rapid processing
-docker compose logs -f telemetry-service
+docker compose logs -f telemetry-processor
 
 # Run the consumer group describe repeatedly to watch LAG decrease
 watch -n 1 "docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
-  --bootstrap-server localhost:9092 --describe --group telemetry-service"
+  --bootstrap-server localhost:9092 --describe --group telemetry-processor"
 ```
 
-- **LAG decreases rapidly** as telemetry-service processes the backlog
+- **LAG decreases rapidly** as telemetry-processor processes the backlog
 - **Gateway message rate spikes** temporarily above normal during catch-up
 - **UI receives a burst** of telemetry as the gateway catches up
 
@@ -348,7 +348,7 @@ docker compose stop postgres
 ### What Happens
 
 1. telemetry-flight-simulator continues producing to `rocket.telemetry.raw` — unaffected
-2. telemetry-service reads a raw event, validates it, and attempts to persist to Postgres
+2. telemetry-processor reads a raw event, validates it, and attempts to persist to Postgres
 3. **The `save()` call throws a database connection exception**
 4. Because the service uses **manual Kafka acknowledgment**, the message is **not acknowledged** — it stays in the topic
 5. Spring Kafka retries the same message, which fails again → the consumer enters a retry loop
@@ -359,7 +359,7 @@ docker compose stop postgres
 
 ```bash
 # Telemetry service logs show database errors
-docker compose logs -f telemetry-service | grep -i "error\|exception\|connect"
+docker compose logs -f telemetry-processor | grep -i "error\|exception\|connect"
 # Look for: "Error persisting telemetry" or HikariPool connection timeout
 
 # Postgres health check fails
@@ -368,7 +368,7 @@ docker compose ps postgres
 
 # Consumer group shows growing lag
 docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
-  --bootstrap-server localhost:9092 --describe --group telemetry-service
+  --bootstrap-server localhost:9092 --describe --group telemetry-processor
 ```
 
 ### Recovery
@@ -377,10 +377,10 @@ docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
 docker compose start postgres
 
 # Wait a few seconds for HikariCP connection pool to recover, then:
-docker compose restart telemetry-service
+docker compose restart telemetry-processor
 ```
 
-> **Why restart telemetry-service?** The HikariCP connection pool may have exhausted its retry budget. Restarting ensures a clean connection pool. In production, you would configure connection pool recovery and health-based restarts.
+> **Why restart telemetry-processor?** The HikariCP connection pool may have exhausted its retry budget. Restarting ensures a clean connection pool. In production, you would configure connection pool recovery and health-based restarts.
 
 ### DevOps Lesson
 
@@ -395,8 +395,8 @@ Persistence failures cascade to message acknowledgment. Manual ack protects agai
 ### Trigger
 
 ```bash
-# Stop both telemetry-service and postgres at once
-docker compose stop telemetry-service postgres
+# Stop both telemetry-processor and postgres at once
+docker compose stop telemetry-processor postgres
 ```
 
 Wait 30–60 seconds.
@@ -410,14 +410,14 @@ docker compose start postgres
 until docker compose exec postgres pg_isready -U postgres 2>/dev/null; do sleep 1; done
 echo "Postgres is ready"
 
-docker compose start telemetry-service
+docker compose start telemetry-processor
 ```
 
 ### What to Observe
 
 1. During downtime, `rocket.telemetry.raw` accumulates hundreds of events
 2. `rocket.telemetry.v1` receives nothing — gateway and UI are frozen
-3. After restart, the telemetry-service consumes the full backlog
+3. After restart, the telemetry-processor consumes the full backlog
 4. The system fully recovers without manual intervention beyond restarting
 
 ### Verification
@@ -430,7 +430,7 @@ docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
 
 ### DevOps Lesson
 
-Startup order matters. Postgres must be available before telemetry-service attempts to connect, or the service will fail on the first message. Docker Compose `depends_on` with health checks handles this in production.
+Startup order matters. Postgres must be available before telemetry-processor attempts to connect, or the service will fail on the first message. Docker Compose `depends_on` with health checks handles this in production.
 
 ---
 
@@ -441,11 +441,11 @@ Understanding these details helps explain the behavior observed in each scenario
 | Property | Value | Relevance |
 |----------|-------|-----------|
 | Kafka partitions | 3 per topic | Allows parallel consumer threads |
-| telemetry-service concurrency | 3 threads | Matches partition count — one thread per partition |
+| telemetry-processor concurrency | 3 threads | Matches partition count — one thread per partition |
 | Kafka acknowledgment mode | Manual (`AckMode.MANUAL`) | Messages only committed after successful processing |
-| telemetry-service consumer group | `telemetry-service` | Tracks offsets independently from gateway |
-| realtime-gateway consumer group | `realtime-gateway` | Tracks offsets independently from telemetry-service |
-| auto-offset-reset | `earliest` (telemetry-service) | On first start, reads from beginning of topic |
+| telemetry-processor consumer group | `telemetry-processor` | Tracks offsets independently from gateway |
+| realtime-gateway consumer group | `realtime-gateway` | Tracks offsets independently from telemetry-processor |
+| auto-offset-reset | `earliest` (telemetry-processor) | On first start, reads from beginning of topic |
 | KafkaJS retry config | 10 retries, 1 s initial backoff | telemetry-flight-simulator and gateway reconnect automatically |
 | HikariCP pool size | max 10, min idle 5 | Connection pool to Postgres |
 | Telemetry tick rate | 50 ms (~20 events/sec) | Rate of telemetry production |
@@ -461,7 +461,7 @@ Understanding these details helps explain the behavior observed in each scenario
 |---------|---------|
 | Kafka | `docker compose restart kafka` |
 | PostgreSQL | `docker compose start postgres` |
-| Telemetry Service | `docker compose restart telemetry-service` |
+| Telemetry Processor | `docker compose restart telemetry-processor` |
 | Realtime Gateway | `pnpm dev:gateway` |
 | Rocket Simulator | `pnpm dev:sim` |
 | Mission Control UI | `pnpm dev:ui` |
@@ -478,7 +478,7 @@ docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
   --bootstrap-server localhost:9092 --describe --all-groups
 
 # Tail logs for a specific service
-docker compose logs -f telemetry-service
+docker compose logs -f telemetry-processor
 docker compose logs -f kafka
 docker compose logs -f postgres
 

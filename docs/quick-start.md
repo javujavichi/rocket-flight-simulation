@@ -8,8 +8,8 @@ Welcome to Rocket Flight Digital Twin!
 # 1. Install Node.js dependencies
 pnpm install
 
-# 2. Build the telemetry service (Java — required once before first run)
-cd telemetry-service && mvn clean package -DskipTests && cd ..
+# 2. Build the telemetry processor (Java — required once before first run)
+cd telemetry-processor && mvn clean package -DskipTests && cd ..
 ```
 
 ## Start Everything (One Command)
@@ -28,7 +28,7 @@ Wait 10–15 seconds for all services to initialize, then open your browser.
 |---------|-----|-----|
 | Kafka | Docker | — |
 | PostgreSQL | Docker | `localhost:5432` |
-| Telemetry Service | Docker | http://localhost:8081/actuator/health |
+| Telemetry Processor | Docker | http://localhost:8081/actuator/health |
 | Kafka UI | Docker | http://localhost:8080 |
 | Realtime Gateway | Node.js | http://localhost:4001/health |
 | Rocket Simulator | Node.js | — |
@@ -97,7 +97,7 @@ curl http://localhost:4001/health | jq
 
 # Check Kafka consumer lag
 docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
-  --bootstrap-server localhost:9092 --describe --group telemetry-service
+  --bootstrap-server localhost:9092 --describe --group telemetry-processor
 ```
 
 For full documentation, see [README.md](../README.md)

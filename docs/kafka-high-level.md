@@ -7,7 +7,7 @@
 ```
 telemetry-flight-simulator  → Producer
 rocket.telemetry.raw        → Topic
-telemetry-service           → Consumer + Producer
+telemetry-processor           → Consumer + Producer
 rocket.telemetry.v1         → Topic
 realtime-gateway            → Consumer
 Mission Control UI          → Final consumer (via WebSocket)
@@ -25,7 +25,7 @@ Kafka should be understood as a **durable event log**, not a traditional message
 **Kafka mindset**
 > Message is written to a log and multiple services can read it independently
 
-This is exactly what `telemetry-service` and `realtime-gateway` do in this project.
+This is exactly what `telemetry-processor` and `realtime-gateway` do in this project.
 
 ---
 
@@ -59,7 +59,7 @@ offset 3: telemetry event
 - Events remain available after consumption
 - Each consumer tracks its own position independently
 
-This allows `telemetry-service` to resume processing after restarts without data loss.
+This allows `telemetry-processor` to resume processing after restarts without data loss.
 
 #### Exercise
 
@@ -96,14 +96,14 @@ Kafka then persists the event durably.
 In this project:
 
 ```
-telemetry-service = consumer of rocket.telemetry.raw
+telemetry-processor = consumer of rocket.telemetry.raw
 realtime-gateway  = consumer of rocket.telemetry.v1
 ```
 
 Consumers read events independently. Kafka tracks each consumer's progress using **offsets**.
 
 ```
-telemetry-service offset: 12345
+telemetry-processor offset: 12345
 realtime-gateway  offset: 12344
 ```
 
@@ -118,7 +118,7 @@ Consumer groups isolate pipelines and enable parallel processing.
 In this project:
 
 ```
-groupId = telemetry-service
+groupId = telemetry-processor
 groupId = realtime-gateway
 ```
 
@@ -126,7 +126,7 @@ This allows independent pipelines on the same topic:
 
 ```
 rocket.telemetry.v1 topic
-├─ telemetry-service group  → persistence
+├─ telemetry-processor group  → persistence
 ├─ realtime-gateway group   → UI streaming
 └─ prediction-service group → future analytics
 ```
@@ -153,7 +153,7 @@ Kafka only guarantees ordering within a single partition — this is why the key
 
 ## Part 3 — Event Normalization Pattern
 
-The `telemetry-service` implements a critical Kafka pattern:
+The `telemetry-processor` implements a critical Kafka pattern:
 
 ```
 raw topic → processing → normalized topic
@@ -179,7 +179,7 @@ The database is a projection derived from Kafka.
 
 ```
 rocket.telemetry.raw  = authoritative source of truth
-telemetry-service     = processor
+telemetry-processor     = processor
 Postgres              = query optimization layer
 rocket.telemetry.v1   = normalized contract
 ```
@@ -196,15 +196,15 @@ These exercises demonstrate Kafka's durability and scalability in practice.
 
 ---
 
-### Exercise 1 — Stop telemetry-service
+### Exercise 1 — Stop telemetry-processor
 
 ```bash
-docker compose stop telemetry-service
+docker compose stop telemetry-processor
 ```
 
 **Result:**
 - Kafka continues storing events in `rocket.telemetry.raw`
-- Restarting `telemetry-service` resumes processing from its last committed offset
+- Restarting `telemetry-processor` resumes processing from its last committed offset
 - Database catches up automatically
 
 **Demonstrates:** durability and offset tracking.
@@ -219,7 +219,7 @@ docker compose stop realtime-gateway
 ```
 
 **Result:**
-- Kafka and `telemetry-service` continue unaffected
+- Kafka and `telemetry-processor` continue unaffected
 - Restarting `realtime-gateway` resumes streaming to the UI
 - No events are lost
 
@@ -237,9 +237,9 @@ Open http://localhost:8080, navigate to a topic, and observe:
 
 ---
 
-### Exercise 4 — Run Multiple telemetry-service Instances
+### Exercise 4 — Run Multiple telemetry-processor Instances
 
-Start a second `telemetry-service` instance. Kafka distributes the 3 partitions across both instances.
+Start a second `telemetry-processor` instance. Kafka distributes the 3 partitions across both instances.
 
 **Demonstrates:** horizontal scalability.
 

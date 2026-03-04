@@ -7,7 +7,7 @@ A physics-based rocket flight simulator that generates realistic telemetry event
 This service acts as the **data source** for the entire telemetry pipeline. It simulates a two-stage rocket launch from liftoff to orbit, producing raw sensor data at 20Hz. It is the starting point of the event stream.
 
 ```
-telemetry-flight-simulator → [rocket.telemetry.raw] → telemetry-service → ...
+telemetry-flight-simulator → [rocket.telemetry.raw] → telemetry-processor → ...
 ```
 
 ## What It Does

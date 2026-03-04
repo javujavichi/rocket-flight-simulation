@@ -29,8 +29,8 @@ A real-time digital twin system for simulating and monitoring rocket launches. F
 # 1. Install dependencies
 pnpm install
 
-# 2. Build the telemetry service (only needed once)
-cd telemetry-service && mvn clean package && cd ..
+# 2. Build the telemetry processor (only needed once)
+cd telemetry-processor && mvn clean package && cd ..
 ```
 
 ### Start Everything
@@ -41,7 +41,7 @@ pnpm dev:all
 
 This single command:
 - Starts Kafka, PostgreSQL, and Kafka UI (Docker containers)
-- Starts the Telemetry Service (validates and persists data)
+- Starts the Telemetry Processor (validates and persists data)
 - Starts the Rocket Simulator (generates telemetry)
 - Starts the Realtime Gateway (WebSocket server)
 - Starts the Mission Control UI (Next.js dashboard)
@@ -64,7 +64,7 @@ For detailed startup logs with colored output:
 |-------------|---------|---------|
 | Node.js | 18+ | UI, Gateway, Simulator |
 | pnpm | Latest | Package manager |
-| Java | 21+ | Telemetry Service |
+| Java | 21+ | Telemetry Processor |
 | Maven | 3.9+ | Building Java services |
 | Docker & Docker Compose | Latest | Infrastructure (Kafka, PostgreSQL) |
 
@@ -84,7 +84,7 @@ docker --version  # Any recent version
 
 When you need to run specific services for development or debugging:
 
-### Infrastructure Only (Kafka, PostgreSQL, Telemetry Service)
+### Infrastructure Only (Kafka, PostgreSQL, Telemetry Processor)
 
 ```bash
 docker compose up -d
@@ -120,11 +120,11 @@ pnpm dev:sim
 pnpm dev:ui
 ```
 
-### Rebuild and Restart Telemetry Service
+### Rebuild and Restart Telemetry Processor
 
 ```bash
-cd telemetry-service && mvn clean package && cd ..
-docker compose up -d --build telemetry-service
+cd telemetry-processor && mvn clean package && cd ..
+docker compose up -d --build telemetry-processor
 ```
 
 ---
@@ -169,7 +169,7 @@ lsof -ti:3000,4001 | xargs kill -9
 | Mission Control Dashboard | http://localhost:3000 | Main web interface |
 | About Page | http://localhost:3000/about | System information |
 | Realtime Gateway Health | http://localhost:4001/health | Gateway status & metrics |
-| Telemetry Service Health | http://localhost:8081/actuator/health | Java service health |
+| Telemetry Processor Health | http://localhost:8081/actuator/health | Java service health |
 | Kafka UI | http://localhost:8080 | Browse Kafka topics & messages |
 | PostgreSQL | `localhost:5432` | Database (user: postgres, pass: postgres) |
 
@@ -197,7 +197,7 @@ lsof -ti:3000,4001 | xargs kill -9
 
 | Command | Description |
 |---------|-------------|
-| `docker compose up -d` | Start Kafka, PostgreSQL, Telemetry Service |
+| `docker compose up -d` | Start Kafka, PostgreSQL, Telemetry Processor |
 | `docker compose down` | Stop all Docker containers |
 | `docker compose ps` | Check container health status |
 | `docker compose logs -f <service>` | Stream logs for a service |
@@ -231,7 +231,7 @@ docker compose ps
 # View specific container logs
 docker compose logs kafka
 docker compose logs postgres
-docker compose logs telemetry-service
+docker compose logs telemetry-processor
 
 # Restart everything
 docker compose down && docker compose up -d
@@ -274,9 +274,9 @@ lsof -ti:3000,4001 | xargs kill -9
    # kafka.connected should be true
    ```
 
-4. **Check telemetry service logs:**
+4. **Check telemetry processor logs:**
    ```bash
-   docker compose logs -f telemetry-service
+   docker compose logs -f telemetry-processor
    # Should see "Consumed raw telemetry" messages
    ```
 
@@ -305,7 +305,7 @@ curl http://localhost:4001/health
 ```bash
 docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
   --bootstrap-server localhost:9092 \
-  --describe --group telemetry-service
+  --describe --group telemetry-processor
 ```
 
 **Reset consumer offsets (if stuck):**
@@ -313,7 +313,7 @@ docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
 ```bash
 docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
   --bootstrap-server localhost:9092 \
-  --group telemetry-service \
+  --group telemetry-processor \
   --reset-offsets --to-latest --topic rocket.telemetry.raw --execute
 ```
 
@@ -322,7 +322,7 @@ docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
 ```bash
 # Docker container logs
 docker compose logs -f kafka
-docker compose logs -f telemetry-service
+docker compose logs -f telemetry-processor
 
 # Application logs (when using start-dev.sh)
 tail -f logs/*.log
@@ -334,7 +334,7 @@ tail -f logs/*.log
 
 ```
 ┌─────────────────┐                           ┌──────────────────┐                           ┌──────────────────┐
-│ Rocket Simulator│─────rocket.telemetry.raw─▶│Telemetry Service │────rocket.telemetry.v1───▶│ Realtime Gateway │
+│ Rocket Simulator│─────rocket.telemetry.raw─▶│Telemetry Processor │────rocket.telemetry.v1───▶│ Realtime Gateway │
 │   (Node.js/TS)  │       Kafka Topic         │  (Spring Boot)   │       Kafka Topic         │   (Node.js/TS)   │
 │                 │                            │                  │                            │                  │
 │ • Physics Sim   │                            │ • Validation     │                            │ • WebSocket      │
@@ -360,7 +360,7 @@ tail -f logs/*.log
 | Component | Technology | Purpose |
 |-----------|------------|---------|
 | Rocket Simulator | Node.js/TypeScript | Physics-based simulation producing raw telemetry |
-| Telemetry Service | Spring Boot (Java 21) | Validation, normalization, persistence |
+| Telemetry Processor | Spring Boot (Java 21) | Validation, normalization, persistence |
 | PostgreSQL | PostgreSQL 16 | Time-series telemetry storage |
 | Realtime Gateway | Node.js/TypeScript | WebSocket server streaming to clients |
 | Mission Control | Next.js/React | Real-time dashboard visualization |
@@ -407,7 +407,7 @@ rocket-flight-digital-twin/
 │   ├── src/
 │   │   └── index.ts                # Kafka consumer + WebSocket server
 │   └── package.json
-├── telemetry-service/              # Telemetry validation service (Spring Boot)
+├── telemetry-processor/              # Telemetry validation service (Spring Boot)
 │   ├── src/main/java/              # Java source
 │   ├── src/main/resources/
 │   │   └── application.yml
@@ -430,7 +430,7 @@ rocket-flight-digital-twin/
 
 1. **Rocket Simulator** generates telemetry at 10Hz based on physics calculations
 2. **Publishes** raw telemetry to Kafka topic `rocket.telemetry.raw`
-3. **Telemetry Service** consumes raw events, validates, normalizes, and enriches them
+3. **Telemetry Processor** consumes raw events, validates, normalizes, and enriches them
 4. **Persists** validated telemetry to PostgreSQL with indexed timestamps
 5. **Publishes** normalized telemetry to Kafka topic `rocket.telemetry.v1`
 6. **Realtime Gateway** consumes validated events and broadcasts via WebSocket
@@ -447,7 +447,7 @@ Physics-based simulation calculating:
 
 Publishes raw telemetry to Kafka `rocket.telemetry.raw` at 10Hz (100ms intervals).
 
-### 2. Telemetry Service (Spring Boot)
+### 2. Telemetry Processor (Spring Boot)
 
 Processes raw telemetry through validation pipeline:
 - **Consumes** from `rocket.telemetry.raw` with manual acknowledgment
@@ -518,13 +518,13 @@ KAFKA_GROUP_ID=realtime-gateway
 PORT=4001
 ```
 
-**Telemetry Service** (`telemetry-service/src/main/resources/application.yml`):
+**Telemetry Processor** (`telemetry-processor/src/main/resources/application.yml`):
 ```yaml
 spring:
   kafka:
     bootstrap-servers: kafka:19092
     consumer:
-      group-id: telemetry-service
+      group-id: telemetry-processor
       auto-offset-reset: latest
     producer:
       acks: all
@@ -564,7 +564,7 @@ Parameters can be adjusted in the UI (simulation mode) or by editing [lib/simula
 ### Adding New Telemetry Fields
 
 1. Update raw contract in `telemetry-flight-simulator/src/simulation.ts`
-2. Add to validation service `telemetry-service/.../dto/TelemetryRaw.java`
+2. Add to validation service `telemetry-processor/.../dto/TelemetryRaw.java`
 3. Add to normalized contract `TelemetryV1.java`
 4. Update validation logic in `TelemetryValidationService.java`
 5. Update entity in `TelemetryEntity.java` for persistence
@@ -573,7 +573,7 @@ Parameters can be adjusted in the UI (simulation mode) or by editing [lib/simula
 
 ### Modifying Validation Rules
 
-Edit `telemetry-service/src/main/resources/application.yml`:
+Edit `telemetry-processor/src/main/resources/application.yml`:
 
 ```yaml
 validation:
@@ -597,7 +597,7 @@ validation:
 curl http://localhost:4001/health
 ```
 
-**Telemetry Service:**
+**Telemetry Processor:**
 ```bash
 curl http://localhost:8081/actuator/health
 ```
@@ -679,7 +679,7 @@ For production deployment, consider:
 - [mission-control-ui/README.md](mission-control-ui/README.md) - Mission Control UI details
 - [telemetry-flight-simulator/README.md](telemetry-flight-simulator/README.md) - Telemetry Flight Simulator details
 - [realtime-gateway/README.md](realtime-gateway/README.md) - Gateway service details
-- [telemetry-service/README.md](telemetry-service/README.md) - Telemetry service details
+- [telemetry-processor/README.md](telemetry-processor/README.md) - Telemetry service details
 
 ---
 

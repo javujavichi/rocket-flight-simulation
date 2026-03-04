@@ -64,11 +64,11 @@ services:
           --topic rocket.telemetry.v1 &&
         echo 'Topic rocket.telemetry.v1 created.'
 
-  telemetry-service:
+  telemetry-processor:
     build:
-      context: ./telemetry-service
+      context: ./telemetry-processor
       dockerfile: Dockerfile
-    container_name: telemetry-service
+    container_name: telemetry-processor
     ports:
       - "8081:8081"
     environment:

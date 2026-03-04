@@ -27,7 +27,7 @@ This service is the **last hop** in the telemetry pipeline before the data reach
 ws://localhost:4001/ws
 ```
 
-Connect here to receive a live stream of `TelemetryV1` JSON events. Each message is a complete telemetry payload (see the [telemetry-service README](../telemetry-service/README.md) for the full schema).
+Connect here to receive a live stream of `TelemetryV1` JSON events. Each message is a complete telemetry payload (see the [telemetry-processor README](../telemetry-processor/README.md) for the full schema).
 
 **Example message received by a client:**
 
@@ -114,7 +114,7 @@ pnpm start
 ### Prerequisites
 
 - Node.js 18+
-- Kafka running with `rocket.telemetry.v1` topic populated (start `telemetry-service` first)
+- Kafka running with `rocket.telemetry.v1` topic populated (start `telemetry-processor` first)
 
 ## Logs
 
@@ -133,7 +133,7 @@ All output is structured JSON:
 **`kafka.connected` is false in health endpoint**
 
 ```bash
-# Verify Kafka and telemetry-service are running
+# Verify Kafka and telemetry-processor are running
 docker compose ps
 
 # Check gateway logs
@@ -144,11 +144,11 @@ docker compose logs -f realtime-gateway
 
 **`messagesPerSecond` is 0**
 
-The gateway is connected but not receiving events. This usually means the telemetry-service is not running or is not publishing to `rocket.telemetry.v1`.
+The gateway is connected but not receiving events. This usually means the telemetry-processor is not running or is not publishing to `rocket.telemetry.v1`.
 
 ```bash
-# Check telemetry-service
-docker compose logs -f telemetry-service
+# Check telemetry-processor
+docker compose logs -f telemetry-processor
 
 # Verify v1 topic has messages
 docker exec kafka /opt/kafka/bin/kafka-console-consumer.sh \

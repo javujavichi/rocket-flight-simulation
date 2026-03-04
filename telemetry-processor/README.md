@@ -1,4 +1,4 @@
-# Telemetry Service
+# Telemetry Processor
 
 A Spring Boot microservice that validates, normalizes, persists, and republishes raw rocket telemetry events.
 
@@ -7,7 +7,7 @@ A Spring Boot microservice that validates, normalizes, persists, and republishes
 This service is the **processing core** of the telemetry pipeline. It sits between the raw data producer and the real-time delivery layer, ensuring that every event is validated against safety thresholds, enriched with flight phase information, and durably stored before being forwarded downstream.
 
 ```
-[rocket.telemetry.raw] → telemetry-service → [rocket.telemetry.v1]
+[rocket.telemetry.raw] → telemetry-processor → [rocket.telemetry.v1]
                                    ↓
                               PostgreSQL
 ```
@@ -95,7 +95,7 @@ Invalid events are still persisted and published — they are flagged with `isVa
 ### Build JAR
 
 ```bash
-cd telemetry-service
+cd telemetry-processor
 mvn clean package -DskipTests
 ```
 
@@ -116,7 +116,7 @@ curl http://localhost:8081/actuator/health
 docker compose up -d kafka postgres kafka-init
 
 # Run Spring Boot
-cd telemetry-service
+cd telemetry-processor
 mvn spring-boot:run
 ```
 
@@ -214,7 +214,7 @@ docker exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:90
 docker exec postgres psql -U postgres -d telemetry -c "SELECT 1"
 
 # View logs
-docker compose logs -f telemetry-service
+docker compose logs -f telemetry-processor
 ```
 
 **No messages being processed**
@@ -229,15 +229,15 @@ docker exec kafka /opt/kafka/bin/kafka-console-consumer.sh \
 # Check consumer group lag
 docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
   --bootstrap-server localhost:9092 \
-  --group telemetry-service \
+  --group telemetry-processor \
   --describe
 ```
 
 **Rebuild after code changes**
 
 ```bash
-cd telemetry-service
+cd telemetry-processor
 mvn clean package -DskipTests
 cd ..
-docker compose up -d --build telemetry-service
+docker compose up -d --build telemetry-processor
 ```

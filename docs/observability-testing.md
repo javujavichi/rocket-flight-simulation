@@ -26,7 +26,7 @@ Start the full system before running any test:
 pnpm dev:all
 ```
 
-This starts Docker infrastructure (Kafka, PostgreSQL, telemetry-service, Kafka UI) and the three local services (UI, Gateway, Simulator) via `concurrently`.
+This starts Docker infrastructure (Kafka, PostgreSQL, telemetry-processor, Kafka UI) and the three local services (UI, Gateway, Simulator) via `concurrently`.
 
 Verify everything is running:
 
@@ -437,5 +437,5 @@ docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
 ```bash
 docker compose ps
 docker compose logs --tail=20 kafka
-docker compose logs --tail=20 telemetry-service
+docker compose logs --tail=20 telemetry-processor
 ```
